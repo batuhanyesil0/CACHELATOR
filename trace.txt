@@ -1,6 +1,106 @@
-0x1000
-0x1000
-0x2000
-0x1000
-0x3000
-0x2000
+# ─────────────────────────────────────────────────────────────────────────────
+# Trace: c[i] = A[i] * B[i]  (eleman bazli carpim, i = 0..7)
+#
+# Adres haritasi (int32, 4 byte hizali)
+#   0x00601020 – 0x0060103C   A[0..7]   — dizi A
+#   0x00601060 – 0x0060107C   B[0..7]   — dizi B
+#   0x006010A0 – 0x006010BC   c[0..7]   — sonuc dizisi
+#   0x7FFEDC38               i          — dongu sayaci (yigit)
+#
+# Format: R/W <adres>. Faz 1: c[] sifirlama = W; Faz 2: i = 0 -> W;
+# Faz 3 her iterasyon: R i (i < 8), R A[i], R B[i], W c[i], W i (i++);
+# Faz 4: c[] okunur = R.
+#
+# blockSize=4, numSets=4 icin set hesabi: index = (addr/4) % 4
+#   A[0]=set0  B[0]=set0  c[0]=set0   → set 0'da yogun catisma!
+#   A[1]=set1  B[1]=set1  c[1]=set1
+#   A[2]=set2  B[2]=set2  c[2]=set2   yigit degiskeni i de set 2
+#   A[3]=set3  B[3]=set3  c[3]=set3
+#   A[4]=set0  B[4]=set0  c[4]=set0   → set 0 uzerine tekrar basıyor
+#
+# Beklenen davranis:
+#   Direct-mapped : A, B, c her iterasyonda birbirini evict eder → cok MISS
+#   2-way         : ilk 2 farkli tag sigabilir, sonrasi thrash eder
+#   4-way         : tum A[0..3] + B[0..3] + c[0..3] sigabilir → cok HIT
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Faz 1: sonuc dizisini sifirla (8 yazma) ──────────────────────────────────
+W 0x006010A0
+W 0x006010A4
+W 0x006010A8
+W 0x006010AC
+W 0x006010B0
+W 0x006010B4
+W 0x006010B8
+W 0x006010BC
+
+# ── Faz 2: dongu sayacini hazirla ────────────────────────────────────────────
+W 0x7FFEDC38
+
+# ── Faz 3: dongu govdesi ─────────────────────────────────────────────────────
+
+# i = 0
+R 0x7FFEDC38
+R 0x00601020
+R 0x00601060
+W 0x006010A0
+W 0x7FFEDC38
+
+# i = 1
+R 0x7FFEDC38
+R 0x00601024
+R 0x00601064
+W 0x006010A4
+W 0x7FFEDC38
+
+# i = 2
+R 0x7FFEDC38
+R 0x00601028
+R 0x00601068
+W 0x006010A8
+W 0x7FFEDC38
+
+# i = 3
+R 0x7FFEDC38
+R 0x0060102C
+R 0x0060106C
+W 0x006010AC
+W 0x7FFEDC38
+
+# i = 4
+R 0x7FFEDC38
+R 0x00601030
+R 0x00601070
+W 0x006010B0
+W 0x7FFEDC38
+
+# i = 5
+R 0x7FFEDC38
+R 0x00601034
+R 0x00601074
+W 0x006010B4
+W 0x7FFEDC38
+
+# i = 6
+R 0x7FFEDC38
+R 0x00601038
+R 0x00601078
+W 0x006010B8
+W 0x7FFEDC38
+
+# i = 7
+R 0x7FFEDC38
+R 0x0060103C
+R 0x0060107C
+W 0x006010BC
+W 0x7FFEDC38
+
+# ── Faz 4: sonucu oku / yazdir ────────────────────────────────────────────────
+R 0x006010A0
+R 0x006010A4
+R 0x006010A8
+R 0x006010AC
+R 0x006010B0
+R 0x006010B4
+R 0x006010B8
+R 0x006010BC

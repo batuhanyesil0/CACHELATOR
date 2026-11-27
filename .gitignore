@@ -1,0 +1,7 @@
+cachelator
+cache_sim
+main
+pinatrace.out
+*.o
+.DS_Store
+.claude/
